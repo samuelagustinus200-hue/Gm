@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Greeting Experience</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <canvas id="canvas-particles"></canvas>
+    <div class="ambient-glow"></div>
+
+    <section id="creator-section" class="view-section hidden">
+        <div class="glass-card creator-container">
+            <div class="form-header">
+                <h2>Create Premium Greeting</h2>
+                <p>Buat momen spesial menjadi tak terlupakan dengan desain sinematik modern.</p>
+            </div>
+            <form id="greeting-form">
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Nama Pengirim</label>
+                        <input type="text" id="sender-name" placeholder="cth: Adrian Wijaya" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Nama Penerima</label>
+                        <input type="text" id="recipient-name" placeholder="cth: Amanda Putri" required>
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Judul Ucapan</label>
+                        <input type="text" id="greeting-title" placeholder="cth: Happy Birthday, My Dearest" required>
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Isi Pesan</label>
+                        <textarea id="greeting-message" rows="5" placeholder="Tuliskan pesan mendalammu di sini..." required></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>URL Foto Penerima (Link Gambar)</label>
+                        <input type="url" id="photo-url" placeholder="https://images.unsplash.com/..." required>
+                    </div>
+                    <div class="input-group">
+                        <label>URL Musik Latar (.mp3)</label>
+                        <input type="url" id="music-url" placeholder="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Warna Tema Utama</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="theme-color" value="#ff2a7f">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Efek Animasi Spesial</label>
+                        <select id="animation-effect">
+                            <option value="floating-hearts">Floating Romantic Hearts</option>
+                            <option value="neon-stars">Neon Stars Glow</option>
+                            <option value="luxury-gold">Luxury Golden Dust</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Generate Premium Link</button>
+            </form>
+
+            <div id="result-modal" class="modal hidden">
+                <div class="glass-card modal-content animate-scale">
+                    <h3>Link Ucapan Berhasil Dibuat! ✨</h3>
+                    <p>Salin link eksklusif di bawah ini dan bagikan ke orang tersayang.</p>
+                    <div class="link-output-container">
+                        <input type="text" id="generated-link" readonly>
+                        <button id="btn-copy" class="btn-secondary">Salin Link</button>
+                    </div>
+                    <button id="btn-close-modal" class="btn-text">Buat Ucapan Baru</button>
+                    <a href="admin.html" class="admin-link">Buka Admin Panel →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="recipient-section" class="view-section hidden">
+        <div id="premium-loader">
+            <div class="loader-content">
+                <div class="spinner"></div>
+                <h2 class="loader-text">Menyiapkan Pengalaman Premium...</h2>
+            </div>
+        </div>
+
+        <div id="gate-overlay">
+            <div class="glass-card gate-card text-center animate-scale">
+                <span class="gate-subtitle">Seseorang mengirimkan pesan eksklusif untuk Anda</span>
+                <h1 id="gate-recipient-name">Loading...</h1>
+                <p>Ketuk tombol di bawah ini untuk membuka lembaran ucapan sinematik.</p>
+                <button id="btn-unlock" class="btn-primary pulse-btn">Buka Ucapan</button>
+            </div>
+        </div>
+
+        <div id="countdown-overlay" class="hidden">
+            <div class="countdown-wrapper">
+                <span class="countdown-label">Membuka Pesan Dalam</span>
+                <div id="countdown-number">3</div>
+            </div>
+        </div>
+
+        <div class="recipient-main-container hidden" id="main-recipient-content">
+            <div class="glass-panel main-showcase-panel">
+                <div class="showcase-photo-frame">
+                    <img id="display-photo" src="" alt="Spesial Untukmu">
+                </div>
+                <div class="showcase-text-details">
+                    <h2 id="display-title" class="gradient-text"></h2>
+                    <div class="divider-line"></div>
+                    <div class="typewriter-container">
+                        <p id="display-message"></p>
+                    </div>
+                    <div class="divider-line"></div>
+                    <span class="display-sender">With Deepest Love,<br><strong id="display-sender-name"></strong></span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="error-section" class="view-section hidden">
+        <div class="glass-card error-card text-center animate-scale">
+            <div class="error-icon">🔒</div>
+            <h2>Akses Ditolak / Link Tidak Valid</h2>
+            <p>ID ucapan atau token keamanan yang Anda masukkan salah, telah diubah secara manual, atau tidak terdaftar di sistem premium kami.</p>
+            <div class="error-actions">
+                <a href="index.html" class="btn-primary">Buat Ucapan Baru</a>
+                <a href="admin.html" class="btn-secondary">Ke Admin Panel</a>
+            </div>
+        </div>
+    </section>
+
+    <audio id="bg-audio" loop></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
