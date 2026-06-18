@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Block Blast Puzzle Solver</title>
+<style>
+  :root{
+    --bg:#080c18; --surface:#0f1828; --surface2:#162035; --surface3:#1c2a45;
+    --border:#1e3a5f; --accent:#00e5ff; --accent2:#7c3aed; --accent3:#10b981;
+    --warn:#f59e0b; --danger:#ef4444; --text:#e2e8f0; --muted:#64748b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;}
+  button,select{font-family:inherit;}
+  .hidden{display:none !important;}
+
+  /* HEADER */
+  .header{text-align:center;padding:16px 12px 10px;background:var(--surface);border-bottom:1px solid var(--border);}
+  .eyebrow{font-size:9px;letter-spacing:5px;color:var(--accent);opacity:0.6;text-transform:uppercase;font-family:monospace;}
+  .title{font-size:1.5rem;font-weight:700;background:linear-gradient(130deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin:2px 0 4px;}
+  .header-actions{display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap;}
+
+  /* SIZE SELECTOR BAR */
+  .size-bar{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;padding:10px 12px;background:var(--surface2);border-bottom:1px solid var(--border);}
+  .size-bar label{font-size:0.62rem;color:var(--muted);font-family:monospace;letter-spacing:1px;text-transform:uppercase;}
+  .size-select{background:var(--surface3);border:1px solid var(--border);color:var(--text);font-size:0.78rem;
+    padding:6px 10px;border-radius:8px;cursor:pointer;}
+  .size-presets{display:flex;gap:6px;flex-wrap:wrap;}
+  .size-chip{background:var(--surface3);border:1px solid var(--border);color:var(--muted);font-size:0.68rem;
+    padding:5px 10px;border-radius:16px;cursor:pointer;transition:all 0.15s;font-weight:600;}
+  .size-chip.active{background:linear-gradient(135deg,var(--accent),#0099cc);color:#001824;border-color:transparent;}
+  .custom-size{display:flex;gap:4px;align-items:center;}
+  .custom-size input{width:46px;background:var(--surface3);border:1px solid var(--border);color:var(--text);
+    font-size:0.72rem;padding:5px 6px;border-radius:6px;text-align:center;}
+
+  /* TABS */
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);}
+  .tab-btn{flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid transparent;
+    color:var(--muted);font-weight:600;font-size:0.82rem;cursor:pointer;transition:color 0.2s;}
+  .tab-btn.active{border-bottom-color:var(--accent);color:var(--accent);}
+
+  /* MAIN */
+  .main{padding:12px;max-width:980px;margin:0 auto;}
+  .layout-desktop{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+  .layout-mobile > div{display:none;}
+  .layout-mobile > div.active{display:block;}
+
+  /* PANELS */
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;}
+  .panel-title{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-family:monospace;}
+
+  /* BOARD */
+  .board-wrap{display:flex;flex-direction:column;align-items:center;}
+  .col-labels{display:flex;gap:2px;margin-bottom:2px;}
+  .col-labels span{text-align:center;font-size:0.5rem;color:var(--muted);font-family:monospace;}
+  .board-row{display:flex;gap:3px;}
+  .row-labels{display:flex;flex-direction:column;gap:2px;}
+  .row-labels span{width:18px;display:flex;align-items:center;justify-content:flex-end;font-size:0.5rem;
+    color:var(--muted);font-family:monospace;padding-right:2px;}
+  .grid{display:grid;gap:2px;background:#0a111f;border:2px solid var(--border);border-radius:9px;padding:4px;
+    touch-action:none;user-select:none;}
+  .cell{border-radius:4px;border:1px solid #182540;background:#0c1528;cursor:pointer;transition:background 0.08s;}
+  .cell.filled{background:var(--accent2);border-color:#9f5aff;}
+  .cell.step-place{background:rgba(16,185,129,0.7);border-color:var(--accent3);}
+  .cell.will-clear{background:rgba(245,158,11,0.5);border-color:var(--warn);}
+  .cell.prev-filled{background:rgba(124,58,237,0.4);border-color:rgba(159,90,255,0.4);}
+  .cell.was-cleared{background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.15);}
+
+  .toolbar{display:flex;gap:6px;margin-top:10px;justify-content:center;flex-wrap:wrap;}
+  .stats{display:flex;gap:12px;margin-top:8px;justify-content:center;}
+  .stat{font-family:monospace;font-size:0.58rem;color:var(--muted);text-align:center;}
+  .stat b{display:block;color:var(--text);font-size:0.82rem;font-weight:700;}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding:8px 10px;background:var(--surface2);border-radius:8px;}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:0.58rem;color:var(--muted);}
+  .legend-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+
+  /* PIECES */
+  .pieces-list{display:flex;flex-direction:column;gap:12px;}
+  .piece-card{background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:10px;}
+  .piece-card.has-shape{border-style:solid;border-color:rgba(0,229,255,0.3);}
+  .piece-head{display:flex;justify-content:space-between;align-items:center;font-family:monospace;
+    font-size:0.58rem;color:var(--muted);margin-bottom:8px;}
+  .piece-head .cells-count{color:var(--accent);}
+  .piece-grid{display:inline-flex;flex-direction:column;gap:2px;}
+  .piece-grid-row{display:flex;gap:2px;}
+  .pcell{border-radius:3px;cursor:pointer;border:1px solid #182540;background:#0c1528;transition:background 0.1s;}
+  .pcell.on{background:var(--accent);border-color:#00bcd4;box-shadow:0 0 4px rgba(0,229,255,0.4);}
+  .piece-foot{display:flex;gap:6px;margin-top:8px;align-items:center;}
+  .piece-foot select{flex:1;min-width:0;background:var(--surface3);border:1px solid var(--border);color:var(--muted);
+    font-size:0.65rem;padding:5px 6px;border-radius:6px;cursor:pointer;}
+  .hint{margin-top:10px;font-size:0.62rem;color:var(--muted);line-height:1.5;padding:8px 10px;background:var(--surface2);border-radius:8px;}
+
+  /* BUTTONS */
+  .btn{font-weight:600;border-radius:8px;border:none;cursor:pointer;display:inline-flex;align-items:center;
+    gap:5px;transition:all 0.15s;white-space:nowrap;font-size:0.78rem;padding:8px 14px;}
+  .btn:disabled{opacity:0.4;cursor:default;}
+  .btn.sm{font-size:0.65rem;padding:5px 10px;}
+  .btn.green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+  .btn.purple{background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;}
+  .btn.primary{background:linear-gradient(135deg,#00e5ff,#0099cc);color:#001824;}
+  .btn.danger{background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,0.3);}
+  .btn.ghost{background:transparent;color:#64748b;border:1px solid #1e3a5f;}
+  .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(0,229,255,0.2);
+    border-top-color:#00e5ff;border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* SOLUTION */
+  .solution-box{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;}
+  .sol-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .sol-label{font-size:0.6rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);font-family:monospace;}
+  .sol-badge{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:20px;
+    padding:3px 12px;font-family:monospace;font-size:0.6rem;color:var(--accent3);}
+  .player-controls{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;}
+  .player-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+  .step-text{font-size:0.68rem;color:var(--muted);font-family:monospace;margin-bottom:6px;}
+  .progress-track{height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent3),var(--accent));width:0%;
+    transition:width 0.3s;border-radius:2px;}
+  .step-cards{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;}
+  .step-card{flex-shrink:0;min-width:100px;background:var(--surface2);border:1px solid var(--border);
+    border-radius:10px;padding:10px;cursor:pointer;transition:all 0.15s;}
+  .step-card.active{background:rgba(16,185,129,0.1);border-color:var(--accent3);}
+  .step-card .sc-label{font-size:0.5rem;color:var(--muted);font-family:monospace;margin-bottom:2px;}
+  .step-card .sc-piece{font-size:0.8rem;font-weight:700;color:var(--accent3);}
+  .step-card .sc-pos{font-size:0.65rem;color:var(--muted);margin-top:2px;}
+  .step-card .sc-lines{font-size:0.6rem;color:var(--warn);margin-top:2px;}
+  .step-card .sc-reason{font-size:0.58rem;color:#4a90c0;margin-top:2px;font-style:italic;line-height:1.3;}
+  .strategy-box{background:var(--surface2);border-left:3px solid var(--accent2);border-radius:0 8px 8px 0;
+    padding:8px 12px;font-size:0.73rem;color:var(--muted);line-height:1.6;}
+  .strategy-box strong{color:var(--text);}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;padding:9px 18px;font-size:0.78rem;color:var(--text);
+    z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.5);opacity:0;pointer-events:none;
+    transition:opacity 0.2s;}
+  .toast.show{opacity:1;}
+  .toast.good{border-color:var(--accent3);color:var(--accent3);}
+  .toast.bad{border-color:var(--danger);color:var(--danger);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="eyebrow">Block Blast</div>
+  <h1 class="title">Puzzle Solver</h1>
+  <div class="header-actions">
+    <button class="btn green" id="btnAI"><span id="aiBtnContent">🤖 AI Solver</span></button>
+    <button class="btn purple" id="btnLocal">⚡ Solve Cepat</button>
+    <button class="btn ghost" id="btnReset" style="padding:7px 10px;">↩</button>
+  </div>
+</div>
+
+<div class="size-bar">
+  <label>Ukuran Papan</label>
+  <div class="size-presets" id="sizePresets"></div>
+  <div class="custom-size">
+    <input type="number" id="customSizeInput" min="4" max="14" placeholder="cstm">
+    <button class="btn ghost sm" id="btnCustomSize">Pakai</button>
+  </div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab-btn active" data-tab="board">🎮 Papan</button>
+  <button class="tab-btn" data-tab="pieces">🧩 Blok</button>
+</div>
+
+<div class="main">
+  <div id="layoutWrap" class="layout-mobile">
+    <div id="boardPanelWrap" class="active"></div>
+    <div id="piecesPanelWrap"></div>
+  </div>
+
+  <div id="solutionBox"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+//  STATE & CONSTANTS
+// ═══════════════════════════════════════
+const SIZE_PRESETS = [
+  {label:"6×6", g:6},
+  {label:"7×7", g:7},
+  {label:"8×8 (Standar)", g:8},
+  {label:"9×9", g:9},
+  {label:"10×10", g:10},
+];
+
+let G = 8; // current grid size, mutable
+const PIECE_GRID = 5; // editor grid for pieces stays 5x5 (max piece footprint)
+
+const mk2D = (r, c, v = 0) => Array.from({ length: r }, () => Array(c).fill(v));
+const mkPiece = (id) => ({ id, shape: mk2D(PIECE_GRID, PIECE_GRID, 0) });
+
+const PRESETS = {
+  "Titik":   [[1]],
+  "H-2":     [[1,1]],
+  "H-3":     [[1,1,1]],
+  "H-4":     [[1,1,1,1]],
+  "H-5":     [[1,1,1,1,1]],
+  "V-2":     [[1],[1]],
+  "V-3":     [[1],[1],[1]],
+  "V-4":     [[1],[1],[1],[1]],
+  "V-5":     [[1],[1],[1],[1],[1]],
+  "□ 2×2":   [[1,1],[1,1]],
+  "□ 3×3":   [[1,1,1],[1,1,1],[1,1,1]],
+  "L-kanan": [[1,0],[1,0],[1,1]],
+  "L-kiri":  [[0,1],[0,1],[1,1]],
+  "J-kanan": [[1,1],[1,0],[1,0]],
+  "J-kiri":  [[1,1],[0,1],[0,1]],
+  "T-atas":  [[1,1,1],[0,1,0]],
+  "T-bawah": [[0,1,0],[1,1,1]],
+  "T-kiri":  [[1,0],[1,1],[1,0]],
+  "T-kanan": [[0,1],[1,1],[0,1]],
+  "S-blok":  [[0,1,1],[1,1,0]],
+  "Z-blok":  [[1,1,0],[0,1,1]],
+  "Sudut 2": [[1,1],[1,0]],
+  "Sudut 3": [[1,1,1],[1,0,0]],
+  "Plus":    [[0,1,0],[1,1,1],[0,1,0]],
+};
+
+let grid = mk2D(G, G, 0);
+let pieces = [mkPiece(0), mkPiece(1), mkPiece(2)];
+let solution = null;
+let currentStep = -1;
+let aiLoading = false;
+let tab = "board";
+let autoRunning = false;
+let autoInterval = null;
+let isDown = false;
+let lastAct = null;
+
+// ═══════════════════════════════════════
+//  SOLVER LOGIC (grid-size aware via G)
+// ═══════════════════════════════════════
+function trimShape(shape) {
+  let minR = PIECE_GRID, maxR = -1, minC = PIECE_GRID, maxC = -1;
+  for (let r = 0; r < PIECE_GRID; r++) for (let c = 0; c < PIECE_GRID; c++) if (shape[r][c]) {
+    minR = Math.min(minR, r); maxR = Math.max(maxR, r); minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+  }
+  if (maxR < 0) return [];
+  return Array.from({ length: maxR - minR + 1 }, (_, i) => shape[minR + i].slice(minC, maxC + 1));
+}
+function countCells(shape) { return shape.flat().filter(Boolean).length; }
+function canPlace(board, shape, row, col) {
+  for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c]) {
+    const br = row + r, bc = col + c;
+    if (br >= G || bc >= G || br < 0 || bc < 0 || board[br][bc]) return false;
+  }
+  return true;
+}
+function placeBoard(board, shape, row, col) {
+  const nb = board.map(r => [...r]);
+  for (let r = 0; r < shape.length; r++) for (let c = 0; c < shape[r].length; c++) if (shape[r][c]) nb[row + r][col + c] = 1;
+  return nb;
+}
+function clearLines(board) {
+  const nb = board.map(r => [...r]);
+  const rows = [], cols = [];
+  for (let r = 0; r < G; r++) if (nb[r].every(v => v === 1)) rows.push(r);
+  for (let c = 0; c < G; c++) if (nb.every(row => row[c] === 1)) cols.push(c);
+  rows.forEach(r => nb[r].fill(0));
+  cols.forEach(c => nb.forEach(row => { row[c] = 0; }));
+  return { board: nb, linesCleared: rows.length + cols.length, rows, cols };
+}
+function scoreBoard(board, lines, pSize) {
+  let s = lines * 150 + pSize * 3;
+  const nearFullThreshold = G - 1;
+  for (let r = 0; r < G; r++) { const f = board[r].reduce((a, b) => a + b, 0); if (f === nearFullThreshold) s += 50; else if (f >= G - 2) s += 20; }
+  for (let c = 0; c < G; c++) { const f = board.reduce((a, row) => a + row[c], 0); if (f === nearFullThreshold) s += 50; else if (f >= G - 2) s += 20; }
+  return s;
+}
+function bestPlace(board, shape) {
+  let best = null, bestS = -Infinity;
+  if (!shape.length) return null;
+  for (let r = 0; r <= G - shape.length; r++) for (let c = 0; c <= G - shape[0].length; c++) if (canPlace(board, shape, r, c)) {
+    const placed = placeBoard(board, shape, r, c);
+    const { board: after, linesCleared, rows, cols } = clearLines(placed);
+    const sc = scoreBoard(after, linesCleared, shape.flat().filter(Boolean).length);
+    if (sc > bestS) { bestS = sc; best = { row: r, col: c, score: sc, linesCleared, rows, cols, board: after }; }
+  }
+  return best;
+}
+function perms(arr) {
+  if (arr.length <= 1) return [arr];
+  const res = [];
+  arr.forEach((item, i) => { perms(arr.filter((_, j) => j !== i)).forEach(p => res.push([item, ...p])); });
+  return res;
+}
+
+// ═══════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, type = "") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (type ? " " + type : "");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = "toast"; }, 2800);
+}
+
+// ═══════════════════════════════════════
+//  GRID SIZE CHANGE
+// ═══════════════════════════════════════
+function changeGridSize(newSize) {
+  if (newSize < 4 || newSize > 14) { showToast("Ukuran harus 4–14", "bad"); return; }
+  G = newSize;
+  grid = mk2D(G, G, 0);
+  solution = null;
+  currentStep = -1;
+  stopAuto();
+  renderSizePresets();
+  renderBoardPanel();
+  renderSolution();
+  showToast(`Papan diubah ke ${G}×${G}`, "good");
+}
+
+function renderSizePresets() {
+  const wrap = document.getElementById("sizePresets");
+  wrap.innerHTML = "";
+  SIZE_PRESETS.forEach(p => {
+    const btn = document.createElement("button");
+    btn.className = "size-chip" + (p.g === G ? " active" : "");
+    btn.textContent = p.label;
+    btn.onclick = () => changeGridSize(p.g);
+    wrap.appendChild(btn);
+  });
+}
+
+// ═══════════════════════════════════════
+//  GRID OPS
+// ═══════════════════════════════════════
+function applyCell(r, c, act) {
+  grid[r][c] = act === "fill" ? 1 : 0;
+}
+function clearGrid() { grid = mk2D(G, G, 0); solution = null; currentStep = -1; renderBoardPanel(); renderSolution(); }
+function fillDemo() {
+  const ng = mk2D(G, G, 0);
+  for (let r = 0; r < G; r++) for (let c = 0; c < G; c++) if (Math.random() < 0.38) ng[r][c] = 1;
+  const tr = Math.floor(Math.random() * G);
+  for (let c = 0; c < G - 1; c++) ng[tr][c] = 1;
+  grid = ng;
+  renderBoardPanel();
+  showToast("Papan contoh dibuat!", "good");
+}
+function clearAll() {
+  clearGrid();
+  pieces = [mkPiece(0), mkPiece(1), mkPiece(2)];
+  solution = null; currentStep = -1;
+  renderPiecesPanel();
+  renderSolution();
+  showToast("Reset!");
+}
+
+function filledCount() { return grid.flat().filter(Boolean).length; }
+function fullRowsCount() { return grid.filter(row => row.every(v => v === 1)).length; }
+
+// ═══════════════════════════════════════
+//  PIECE OPS
+// ═══════════════════════════════════════
+function togglePC(pi, r, c) {
+  pieces[pi].shape[r][c] ^= 1;
+  renderPiecesPanel();
+}
+function clearPiece(pi) {
+  pieces[pi] = mkPiece(pi);
+  renderPiecesPanel();
+}
+function applyPreset(pi, name) {
+  const tmpl = PRESETS[name];
+  if (!tmpl) return;
+  const ns = mk2D(PIECE_GRID, PIECE_GRID, 0);
+  tmpl.forEach((row, r) => row.forEach((v, c) => { if (r < PIECE_GRID && c < PIECE_GRID) ns[r][c] = v; }));
+  pieces[pi] = { ...pieces[pi], shape: ns };
+  renderPiecesPanel();
+  showToast(`${name} → Blok ${pi + 1}`, "good");
+}
+
+// ═══════════════════════════════════════
+//  LOCAL SOLVER
+// ═══════════════════════════════════════
+function solveLocal() {
+  const active = pieces.map((p, i) => ({ idx: i, shape: trimShape(p.shape) })).filter(p => p.shape.length > 0 && p.shape.flat().some(Boolean));
+  if (!active.length) { showToast("Tambahkan minimal 1 blok!", "bad"); return; }
+  let bestScore = -Infinity, bestSteps = [];
+  for (const perm of perms(active)) {
+    let board = grid.map(r => [...r]), steps = [], score = 0, ok = true;
+    for (const p of perm) {
+      const b = bestPlace(board, p.shape);
+      if (!b) { ok = false; break; }
+      score += b.score;
+      steps.push({ pieceIdx: p.idx, shape: p.shape, row: b.row, col: b.col, linesCleared: b.linesCleared, clearedRows: b.rows, clearedCols: b.cols, reason: "" });
+      board = b.board;
+    }
+    if (ok && score > bestScore) { bestScore = score; bestSteps = steps; }
+  }
+  if (!bestSteps.length) { showToast("Tidak ada posisi valid.", "bad"); return; }
+  solution = { steps: bestSteps, solver: "⚡ Cepat", strategy: "" };
+  currentStep = -1;
+  renderSolution();
+  showToast(`Solusi: ${bestSteps.length} langkah!`, "good");
+}
+
+// ═══════════════════════════════════════
+//  AI SOLVER
+// ═══════════════════════════════════════
+async function solveAI() {
+  const active = pieces.map((p, i) => ({ idx: i, shape: trimShape(p.shape) })).filter(p => p.shape.length > 0 && p.shape.flat().some(Boolean));
+  if (!active.length) { showToast("Tambahkan minimal 1 blok!", "bad"); return; }
+  aiLoading = true; solution = null;
+  renderAIBtn(); renderSolution();
+  const boardRaw = grid.map(r => r.join("")).join("\n");
+  const pDesc = active.map(p => `Blok ${p.idx + 1}:\n${p.shape.map(r => r.join(" ")).join("\n")}`).join("\n\n");
+  const prompt = `Kamu adalah Block Blast puzzle solver expert.
+
+PAPAN ${G}×${G} (1=terisi, 0=kosong, index mulai 0):
+${boardRaw}
+
+BLOK TERSEDIA:
+${pDesc}
+
+Cari penempatan terbaik untuk memaksimalkan baris/kolom yang dihapus.
+Validasi: row+tinggi<=${G}, col+lebar<=${G}, tidak konflik dengan sel=1.
+
+Kembalikan HANYA JSON (tanpa markdown):
+{"steps":[{"pieceIdx":0,"row":0,"col":0,"linesCleared":0,"reason":"alasan"}],"totalLines":0,"strategy":"strategi bahasa Indonesia"}`;
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
+    });
+    const data = await res.json();
+    aiLoading = false;
+    const text = data.content.map(i => i.text || "").join("");
+    const clean = text.replace(/```json|```/g, "").trim();
+    let parsed;
+    try { parsed = JSON.parse(clean); } catch { showToast("Parse error, pakai lokal", "bad"); renderAIBtn(); solveLocal(); return; }
+    let board = grid.map(r => [...r]);
+    const steps = [];
+    for (const s of (parsed.steps || [])) {
+      const ap = active.find(p => p.idx === s.pieceIdx);
+      if (!ap) continue;
+      const shape = ap.shape;
+      let row = s.row, col = s.col;
+      if (!canPlace(board, shape, row, col)) {
+        const fb = bestPlace(board, shape);
+        if (!fb) continue;
+        row = fb.row; col = fb.col; s.linesCleared = fb.linesCleared;
+      }
+      const placed = placeBoard(board, shape, row, col);
+      const { board: after, linesCleared, rows, cols } = clearLines(placed);
+      steps.push({ pieceIdx: s.pieceIdx, shape, row, col, linesCleared, clearedRows: rows, clearedCols: cols, reason: s.reason || "" });
+      board = after;
+    }
+    if (!steps.length) { showToast("AI gagal, pakai lokal", "bad"); renderAIBtn(); solveLocal(); return; }
+    solution = { steps, solver: "🤖 AI", strategy: parsed.strategy || "" };
+    currentStep = -1;
+    renderAIBtn(); renderSolution();
+    showToast(`AI: ${steps.length} langkah!`, "good");
+  } catch (e) {
+    aiLoading = false; renderAIBtn();
+    showToast("Error API, pakai lokal", "bad"); solveLocal();
+  }
+}
+
+// ═══════════════════════════════════════
+//  STEP PREVIEW
+// ═══════════════════════════════════════
+function getCellState(r, c) {
+  if (!solution || currentStep < 0) return grid[r][c] ? "filled" : "empty";
+  const { steps } = solution;
+  let board = grid.map(row => [...row]);
+  const clearedSet = new Set();
+  for (let i = 0; i < currentStep; i++) {
+    const s = steps[i];
+    if (s && canPlace(board, s.shape, s.row, s.col)) {
+      const placed = placeBoard(board, s.shape, s.row, s.col);
+      const { board: after, rows, cols } = clearLines(placed);
+      rows.forEach(rr => { for (let cc = 0; cc < G; cc++) clearedSet.add(rr * G + cc); });
+      cols.forEach(cc => { for (let rr = 0; rr < G; rr++) clearedSet.add(rr * G + cc); });
+      board = after;
+    }
+  }
+  const step = steps[currentStep];
+  if (!step) return board[r][c] ? "prev-filled" : "empty";
+  const placingSet = new Set();
+  for (let pr = 0; pr < step.shape.length; pr++) for (let pc = 0; pc < step.shape[pr].length; pc++) if (step.shape[pr][pc]) placingSet.add((step.row + pr) * G + (step.col + pc));
+  let placed = board;
+  if (canPlace(board, step.shape, step.row, step.col)) placed = placeBoard(board, step.shape, step.row, step.col);
+  const { rows: wr, cols: wc } = clearLines(placed);
+  const willClear = new Set();
+  wr.forEach(rr => { for (let cc = 0; cc < G; cc++) willClear.add(rr * G + cc); });
+  wc.forEach(cc => { for (let rr = 0; rr < G; rr++) willClear.add(rr * G + cc); });
+  const idx = r * G + c;
+  if (placingSet.has(idx)) return "step-place";
+  if (willClear.has(idx)) return "will-clear";
+  if (board[r][c]) return "prev-filled";
+  if (clearedSet.has(idx)) return "was-cleared";
+  return "empty";
+}
+
+// ═══════════════════════════════════════
+//  AUTO PLAY
+// ═══════════════════════════════════════
+function stopAuto() {
+  if (autoInterval) { clearInterval(autoInterval); autoInterval = null; autoRunning = false; }
+}
+function autoPlay() {
+  if (autoInterval) { stopAuto(); renderSolution(); return; }
+  let step = currentStep >= (solution?.steps.length || 0) - 1 ? -1 : currentStep;
+  autoRunning = true;
+  autoInterval = setInterval(() => {
+    step++;
+    if (!solution || step >= solution.steps.length) { stopAuto(); renderSolution(); return; }
+    currentStep = step;
+    renderSolution();
+    renderBoardPanel();
+  }, 1200);
+  renderSolution();
+}
+
+// ═══════════════════════════════════════
+//  RESPONSIVE SIZING
+// ═══════════════════════════════════════
+function getCellPx() {
+  const w = window.innerWidth;
+  const base = w < 420 ? 34 : w < 600 ? 38 : 42;
+  // shrink cell size further for larger grids so the board still fits
+  if (G <= 8) return base;
+  const scale = 8 / G;
+  return Math.max(18, Math.round(base * scale));
+}
+function getPCellPx() {
+  return window.innerWidth < 420 ? 20 : 24;
+}
+function isMobile() { return window.innerWidth < 700; }
+
+// ═══════════════════════════════════════
+//  RENDER: BOARD PANEL
+// ═══════════════════════════════════════
+const cellBg = {
+  empty: "#0c1528", filled: "var(--accent2)",
+  "step-place": "rgba(16,185,129,0.7)", "will-clear": "rgba(245,158,11,0.5)",
+  "prev-filled": "rgba(124,58,237,0.4)", "was-cleared": "rgba(16,185,129,0.08)",
+};
+
+function renderBoardPanel() {
+  const CELL = getCellPx();
+  const wrap = document.getElementById("boardPanelWrap");
+  const filled = filledCount();
+  const fullRows = fullRowsCount();
+
+  let colLabels = "";
+  for (let c = 0; c < G; c++) colLabels += `<span style="width:${CELL}px;">${c + 1}</span>`;
+
+  let rowLabels = "";
+  for (let r = 0; r < G; r++) rowLabels += `<span style="height:${CELL}px;">${r + 1}</span>`;
+
+  let cellsHtml = "";
+  for (let r = 0; r < G; r++) for (let c = 0; c < G; c++) {
+    const state = getCellState(r, c);
+    cellsHtml += `<div class="cell ${state}" data-row="${r}" data-col="${c}" style="width:${CELL}px;height:${CELL}px;"></div>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="panel">
+      <div class="panel-title">🎮 Papan ${G}×${G}</div>
+      <div class="board-wrap">
+        <div class="col-labels" style="padding-left:20px;">${colLabels}</div>
+        <div class="board-row">
+          <div class="row-labels">${rowLabels}</div>
+          <div class="grid" id="gridEl" style="grid-template-columns:repeat(${G},${CELL}px);grid-template-rows:repeat(${G},${CELL}px);">
+            ${cellsHtml}
+          </div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost sm" id="btnClearGrid">🗑 Kosong</button>
+        <button class="btn ghost sm" id="btnFillDemo">🎲 Contoh</button>
+      </div>
+      <div class="stats">
+        <div class="stat">Terisi<b>${filled}</b></div>
+        <div class="stat">Kosong<b>${G * G - filled}</b></div>
+        <div class="stat">Baris penuh<b>${fullRows}</b></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#9f5aff;"></div>Terisi</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(16,185,129,0.7);"></div>Blok baru</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(245,158,11,0.5);"></div>Akan hapus</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(124,58,237,0.4);"></div>Sebelumnya</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("btnClearGrid").onclick = clearGrid;
+  document.getElementById("btnFillDemo").onclick = fillDemo;
+
+  const gridEl = document.getElementById("gridEl");
+  gridEl.querySelectorAll(".cell").forEach(cellEl => {
+    const r = +cellEl.dataset.row, c = +cellEl.dataset.col;
+    cellEl.addEventListener("mousedown", () => {
+      isDown = true;
+      const act = grid[r][c] ? "erase" : "fill";
+      lastAct = act;
+      applyCell(r, c, act);
+      renderBoardPanel();
+    });
+    cellEl.addEventListener("mouseenter", () => {
+      if (!isDown) return;
+      applyCell(r, c, lastAct);
+      renderBoardPanel();
+    });
+    cellEl.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      const act = grid[r][c] ? "erase" : "fill";
+      lastAct = act;
+      applyCell(r, c, act);
+      renderBoardPanel();
+    }, { passive: false });
+  });
+  gridEl.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (el && el.dataset.row !== undefined) {
+      const r = +el.dataset.row, c = +el.dataset.col;
+      applyCell(r, c, lastAct);
+      renderBoardPanel();
+    }
+  }, { passive: false });
+}
+
+// ═══════════════════════════════════════
+//  RENDER: PIECES PANEL
+// ═══════════════════════════════════════
+function renderPiecesPanel() {
+  const PCELL = getPCellPx();
+  const wrap = document.getElementById("piecesPanelWrap");
+
+  let optionsHtml = `<option value="">+ Template...</option>`;
+  Object.keys(PRESETS).forEach(k => { optionsHtml += `<option value="${k}">${k}</option>`; });
+
+  let cardsHtml = "";
+  pieces.forEach((piece, pi) => {
+    const trim = trimShape(piece.shape);
+    const has = trim.length > 0 && trim.flat().some(Boolean);
+    let gridHtml = "";
+    piece.shape.forEach((row, r) => {
+      let rowHtml = "";
+      row.forEach((v, c) => {
+        rowHtml += `<div class="pcell ${v ? "on" : ""}" data-pi="${pi}" data-r="${r}" data-c="${c}" style="width:${PCELL}px;height:${PCELL}px;"></div>`;
+      });
+      gridHtml += `<div class="piece-grid-row">${rowHtml}</div>`;
+    });
+    cardsHtml += `
+      <div class="piece-card ${has ? "has-shape" : ""}">
+        <div class="piece-head">
+          <span style="font-weight:600;">BLOK ${pi + 1}</span>
+          <span class="cells-count">${countCells(piece.shape)} sel</span>
+        </div>
+        <div class="piece-grid">${gridHtml}</div>
+        <div class="piece-foot">
+          <select data-pi="${pi}" class="preset-select">${optionsHtml}</select>
+          <button class="btn danger sm clear-piece-btn" data-pi="${pi}">✕</button>
+        </div>
+      </div>
+    `;
+  });
+
+  wrap.innerHTML = `
+    <div class="panel">
+      <div class="panel-title">🧩 Blok Tersedia</div>
+      <div class="pieces-list">${cardsHtml}</div>
+      <div class="hint">💡 Ketuk sel blok untuk toggle on/off. Pilih template dari dropdown.</div>
+    </div>
+  `;
+
+  wrap.querySelectorAll(".pcell").forEach(el => {
+    el.addEventListener("click", () => {
+      togglePC(+el.dataset.pi, +el.dataset.r, +el.dataset.c);
+    });
+  });
+  wrap.querySelectorAll(".preset-select").forEach(el => {
+    el.addEventListener("change", () => {
+      applyPreset(+el.dataset.pi, el.value);
+      el.value = "";
+    });
+  });
+  wrap.querySelectorAll(".clear-piece-btn").forEach(el => {
+    el.addEventListener("click", () => clearPiece(+el.dataset.pi));
+  });
+}
+
+// ═══════════════════════════════════════
+//  RENDER: SOLUTION
+// ═══════════════════════════════════════
+function renderSolution() {
+  const box = document.getElementById("solutionBox");
+  if (!solution) { box.innerHTML = ""; return; }
+
+  const totalLines = solution.steps.reduce((a, s) => a + s.linesCleared, 0);
+  const estScore = totalLines * 100 + solution.steps.length * 10;
+
+  let stepCardsHtml = "";
+  solution.steps.forEach((s, i) => {
+    stepCardsHtml += `
+      <div class="step-card ${currentStep === i ? "active" : ""}" data-step="${i}">
+        <div class="sc-label">LANGKAH ${i + 1}</div>
+        <div class="sc-piece">Blok ${s.pieceIdx + 1}</div>
+        <div class="sc-pos">B${s.row + 1} K${s.col + 1}</div>
+        ${s.linesCleared > 0 ? `<div class="sc-lines">⚡${s.linesCleared} baris</div>` : ""}
+        ${s.reason ? `<div class="sc-reason">${escapeHtml(s.reason)}</div>` : ""}
+      </div>
+    `;
+  });
+
+  let stepText = "";
+  if (currentStep === -1) {
+    stepText = `${solution.steps.length} langkah — tekan ▶ untuk mulai`;
+  } else {
+    const s = solution.steps[currentStep];
+    stepText = `Langkah ${currentStep + 1}/${solution.steps.length}: Blok ${s.pieceIdx + 1} → Baris ${s.row + 1}, Kol ${s.col + 1}${s.linesCleared ? ` ⚡ ${s.linesCleared} dihapus!` : ""}`;
+  }
+  const progressPct = currentStep >= 0 ? ((currentStep + 1) / solution.steps.length * 100) : 0;
+
+  box.innerHTML = `
+    <div class="solution-box">
+      <div class="sol-head">
+        <span class="sol-label">✅ Solusi</span>
+        <span class="sol-badge">⭐ ~${estScore} | ${totalLines} baris | ${solution.solver}</span>
+      </div>
+      <div class="player-controls">
+        <div class="player-btns">
+          <button class="btn ghost sm" id="btnStepFirst">⏮</button>
+          <button class="btn ghost sm" id="btnStepPrev" ${currentStep <= -1 ? "disabled" : ""}>◀</button>
+          <button class="btn ghost sm" id="btnStepNext" ${currentStep >= solution.steps.length - 1 ? "disabled" : ""}>▶</button>
+          <button class="btn ${autoRunning ? "primary" : "ghost"} sm" id="btnAutoPlay">${autoRunning ? "⏸ Pause" : "▷ Auto"}</button>
+        </div>
+        <div class="step-text">${stepText}</div>
+        <div class="progress-track"><div class="progress-fill" style="width:${progressPct}%;"></div></div>
+      </div>
+      <div class="step-cards">${stepCardsHtml}</div>
+      ${solution.strategy ? `<div class="strategy-box"><strong>Strategi: </strong>${escapeHtml(solution.strategy)}</div>` : ""}
+    </div>
+  `;
+
+  document.getElementById("btnStepFirst").onclick = () => { stopAuto(); currentStep = -1; renderSolution(); renderBoardPanel(); };
+  document.getElementById("btnStepPrev").onclick = () => { currentStep = Math.max(-1, currentStep - 1); renderSolution(); renderBoardPanel(); };
+  document.getElementById("btnStepNext").onclick = () => { currentStep = Math.min(solution.steps.length - 1, currentStep + 1); renderSolution(); renderBoardPanel(); };
+  document.getElementById("btnAutoPlay").onclick = autoPlay;
+  box.querySelectorAll(".step-card").forEach(el => {
+    el.addEventListener("click", () => { currentStep = +el.dataset.step; renderSolution(); renderBoardPanel(); });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ═══════════════════════════════════════
+//  AI BUTTON STATE
+// ═══════════════════════════════════════
+function renderAIBtn() {
+  const el = document.getElementById("aiBtnContent");
+  const btn = document.getElementById("btnAI");
+  if (aiLoading) {
+    el.innerHTML = `<span class="spinner"></span> Proses...`;
+    btn.disabled = true;
+    document.getElementById("btnLocal").disabled = true;
+  } else {
+    el.textContent = "🤖 AI Solver";
+    btn.disabled = false;
+    document.getElementById("btnLocal").disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════
+function setupTabs() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      tab = btn.dataset.tab;
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+      document.getElementById("boardPanelWrap").classList.toggle("active", tab === "board");
+      document.getElementById("piecesPanelWrap").classList.toggle("active", tab === "pieces");
+    });
+  });
+}
+
+function applyLayoutMode() {
+  const layoutWrap = document.getElementById("layoutWrap");
+  const tabs = document.getElementById("tabs");
+  if (isMobile()) {
+    layoutWrap.className = "layout-mobile";
+    document.getElementById("boardPanelWrap").classList.toggle("active", tab === "board");
+    document.getElementById("piecesPanelWrap").classList.toggle("active", tab === "pieces");
+    tabs.classList.remove("hidden");
+  } else {
+    layoutWrap.className = "layout-desktop";
+    document.getElementById("boardPanelWrap").classList.add("active");
+    document.getElementById("piecesPanelWrap").classList.add("active");
+    tabs.classList.add("hidden");
+  }
+}
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+function init() {
+  renderSizePresets();
+  setupTabs();
+  applyLayoutMode();
+  renderBoardPanel();
+  renderPiecesPanel();
+  renderSolution();
+  renderAIBtn();
+
+  document.getElementById("btnAI").onclick = solveAI;
+  document.getElementById("btnLocal").onclick = solveLocal;
+  document.getElementById("btnReset").onclick = clearAll;
+  document.getElementById("btnCustomSize").onclick = () => {
+    const val = parseInt(document.getElementById("customSizeInput").value, 10);
+    if (!isNaN(val)) changeGridSize(val);
+  };
+
+  window.addEventListener("resize", () => {
+    applyLayoutMode();
+    renderBoardPanel();
+    renderPiecesPanel();
+  });
+  window.addEventListener("mouseup", () => { isDown = false; lastAct = null; });
+  window.addEventListener("touchend", () => { isDown = false; lastAct = null; });
+}
+
+init();
+</script>
+</body>
+</html>
